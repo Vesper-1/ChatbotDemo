@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - AI Chat Demo{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="header">
+    <h1>AI Chat Demo</h1>
+    <div class="header-info">
+        <span class="user-badge">Hello, {{ username }}</span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline;">
+            <button type="submit" class="btn btn-logout">Logout</button>
+        </form>
+    </div>
+</div>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-messages" style="padding-top: 10px;">
+            {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<!-- Chat Container -->
+<div class="chat-container">
+    <!-- Model Selector -->
+    <div class="model-selector">
+        <form method="POST" action="{{ url_for('select_model') }}" style="display: flex; align-items: center; gap: 15px;">
+            <label for="model">AI Model:</label>
+            <select name="model" id="model" onchange="this.form.submit()">
+                <option value="deepseek" {% if current_model == 'deepseek' %}selected{% endif %}>DeepSeek</option>
+                <option value="gemini" {% if current_model == 'gemini' %}selected{% endif %}>Gemini</option>
+                <option value="gpt4" {% if current_model == 'gpt4' %}selected{% endif %}>GPT-4</option>
+            </select>
+        </form>
+        <form method="POST" action="{{ url_for('clear_chat') }}" style="margin-left: auto;">
+            <button type="submit" class="btn btn-clear">Clear Chat</button>
+        </form>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="chat-messages" id="chat-messages">
+        {% if chat_history %}
+            {% for message in chat_history %}
+                <div class="message message-{{ message.role }}">
+                    <span class="message-label">
+                        {% if message.role == 'user' %}You{% else %}{{ message.model|default('AI') }}{% endif %}
+                    </span>
+                    <div class="message-bubble">{{ message.content }}</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-chat">
+                <div class="empty-chat-icon">💬</div>
+                <p>Start a conversation with the AI!</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Chat Input -->
+    <div class="chat-input-container">
+        <form method="POST" action="{{ url_for('send_message') }}" class="chat-input-form">
+            <input
+                type="text"
+                name="message"
+                class="chat-input"
+                placeholder="Type your message here..."
+                autocomplete="off"
+                required
+            >
+            <button type="submit" class="btn-send">Send</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
