@@ -1,10 +1,11 @@
 """
 Flask Chat App Demo
 A simple chat application with multiple AI model support.
-No JavaScript, No Database - uses in-memory storage and sessions.
+No JavaScript, No Database - uses CSV file for user persistence.
 """
 
 import os
+import csv  # [CHANGED] Added csv import for user persistence
 import requests
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from dotenv import load_dotenv
@@ -15,13 +16,61 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# In-memory user storage (demo purposes only - not for production!)
+# [CHANGED] CSV file path for user persistence
+USERS_CSV_FILE = 'users.csv'
+
+# In-memory user storage (populated from CSV on startup)
 users = {}
 
 # API Keys
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
+
+
+# ============== CSV User Persistence Functions ==============
+# [CHANGED] Added entire section for CSV-based user persistence
+
+def load_users_from_csv():
+    """
+    Load users from CSV file into the users dictionary.
+    Creates the CSV file if it doesn't exist.
+    """
+    global users
+
+    # Create CSV file if it doesn't exist
+    if not os.path.exists(USERS_CSV_FILE):
+        with open(USERS_CSV_FILE, 'w', newline='') as f:
+            writer = csv.writer(f)
+            # Optionally write a header (commented out to keep format simple)
+            # writer.writerow(['username', 'password'])
+        print(f"[INFO] Created new {USERS_CSV_FILE} file.")
+        return
+
+    # Read existing users from CSV
+    try:
+        with open(USERS_CSV_FILE, 'r', newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) >= 2:
+                    username, password = row[0], row[1]
+                    users[username] = password
+        print(f"[INFO] Loaded {len(users)} user(s) from {USERS_CSV_FILE}.")
+    except Exception as e:
+        print(f"[ERROR] Failed to load users from CSV: {e}")
+
+
+def save_user_to_csv(username: str, password: str):
+    """
+    Append a new user to the CSV file.
+    """
+    try:
+        with open(USERS_CSV_FILE, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([username, password])
+        print(f"[INFO] Saved user '{username}' to {USERS_CSV_FILE}.")
+    except Exception as e:
+        print(f"[ERROR] Failed to save user to CSV: {e}")
 
 
 # ============== Helper Functions ==============
@@ -174,6 +223,7 @@ def login():
                 flash('Username already exists. Please choose another.', 'error')
             else:
                 users[username] = password
+                save_user_to_csv(username, password)  # [CHANGED] Save to CSV immediately
                 flash('Registration successful! Please login.', 'success')
 
         elif action == 'login':
@@ -278,12 +328,22 @@ def clear_chat():
 # ============== Main ==============
 
 if __name__ == '__main__':
-    # Create a demo user for easy testing
-    users['demo'] = 'demo'
+    # [CHANGED] Load users from CSV file on startup
+    load_users_from_csv()
+
+    # [CHANGED] Only create demo user if not already in CSV
+    if 'demo' not in users:
+        users['demo'] = 'demo'
+        save_user_to_csv('demo', 'demo')
+        print("[INFO] Demo user created: username='demo', password='demo'")
+    else:
+        print("[INFO] Demo user already exists in CSV.")
+
     print("=" * 50)
     print("Flask Chat App Demo")
     print("=" * 50)
-    print("Demo user created: username='demo', password='demo'")
+    print(f"Loaded {len(users)} user(s) from {USERS_CSV_FILE}")
+    print("Demo user: username='demo', password='demo'")
     print("=" * 50)
 
     app.run(debug=True, host='0.0.0.0', port=5000)
